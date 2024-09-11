@@ -29,11 +29,31 @@ const uint8_t CAB_COIN = 0x04;
 uint8_t IOSTATE[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
 
 struct piu_bind {
-    const char* key;
+    std::list<const char*> keys;  // List of keys instead of a single key
     uint8_t state;
     uint8_t bit;
 };
 
+const std::list<piu_bind> binds = {
+    { { "z" },  STATE_PLAYER_1, PAD_LD },  
+    { { "q" },  STATE_PLAYER_1, PAD_LU },  
+    { { "s" },  STATE_PLAYER_1, PAD_CN },     
+    { { "e" },  STATE_PLAYER_1, PAD_RU },  
+    { { "c" },  STATE_PLAYER_1, PAD_RD },      
+    { { "F5" }, STATE_CAB_PLAYER_1, CAB_COIN },
+
+    { {"KP_1", "d" },  STATE_PLAYER_2, PAD_LD },
+    { {"KP_7", "f" },  STATE_PLAYER_2, PAD_LU },
+    { {"KP_5", "g" },  STATE_PLAYER_2, PAD_CN },
+    { {"KP_9", "k" },  STATE_PLAYER_2, PAD_RU },
+    { {"KP_3", "l" },  STATE_PLAYER_2, PAD_RD },
+    { {"F6"},    STATE_CAB_PLAYER_2, CAB_COIN },
+
+    { {"F1"}, STATE_CAB_PLAYER_1, CAB_TEST },
+    { {"F2"}, STATE_CAB_PLAYER_1, CAB_SERVICE },
+};
+
+/*
 const std::list<piu_bind> binds = {
     { "q",  STATE_PLAYER_1, PAD_LU },
     { "e",  STATE_PLAYER_1, PAD_RU },
@@ -52,7 +72,7 @@ const std::list<piu_bind> binds = {
     { "F1", STATE_CAB_PLAYER_1, CAB_TEST },
     { "F2", STATE_CAB_PLAYER_1, CAB_SERVICE },
 };
-
+*/
 bool is_real_pad_connected = false;
 bool was_emulated_device_added = false;
 
@@ -199,6 +219,32 @@ extern "C" int XNextEvent(Display* display, XEvent* event_return) {
 
     int ret = o_x_next_event(display, event_return);
 
+    if (event_return->type <= 3) {
+        for (const auto& bind : binds) {
+            for (const auto& key : bind.keys) {
+                if (event_return->xkey.keycode == XKeysymToKeycode(display, XStringToKeysym(key))) {
+                    IOSTATE[bind.state] ^= bind.bit;
+                }
+            }
+        }
+    }
+
+    return ret;
+}
+
+
+
+/*
+extern "C" int XNextEvent(Display* display, XEvent* event_return) {
+    static auto o_x_next_event = reinterpret_cast<decltype(&XNextEvent)>(dlsym(RTLD_NEXT, "XNextEvent"));
+
+    if (!o_x_next_event) {
+        std::cerr << "o_x_next_event was NULL" << std::endl;
+        std::exit(1);
+    }
+
+    int ret = o_x_next_event(display, event_return);
+
     if (event_return->type <= 3)
         for (const auto& bind : binds)
             if (event_return->xkey.keycode == XKeysymToKeycode(display, XStringToKeysym(bind.key)))
@@ -206,3 +252,4 @@ extern "C" int XNextEvent(Display* display, XEvent* event_return) {
 
     return ret;
 }
+*/
